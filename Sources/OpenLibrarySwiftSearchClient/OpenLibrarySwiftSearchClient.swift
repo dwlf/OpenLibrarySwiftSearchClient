@@ -1,7 +1,7 @@
 import Foundation
 import os.log
 
-enum OpenLibraryAPIError: Error {
+public enum OpenLibraryAPIError: Error {
     case invalidURL
     case requestFailed
     case invalidResponse
@@ -18,7 +18,7 @@ public struct OpenLibrarySwiftSearchClient {
     public init() {
     }
     
-    static func findClosestBook(title: String?, author: String?, completion: @escaping (Result<OpenLibraryBook, OpenLibraryAPIError>) -> Void) {
+    public static func findClosestBook(title: String?, author: String?, completion: @escaping (Result<OpenLibraryBook, OpenLibraryAPIError>) -> Void) {
         if title == nil && author == nil {
             completion(.failure(.invalidURL))
             return
@@ -75,16 +75,14 @@ public struct OpenLibrarySwiftSearchClient {
             }
         }.resume()
     }
-
-
 }
 
-struct OpenLibraryBook: Codable {
-    let key: String
-    let title: String
-    let isbn: [String]?
-    let author_name: [String]?
-    let url: String?
+public struct OpenLibraryBook: Codable {
+    public let key: String
+    public let title: String
+    public let isbn: [String]?
+    public let author_name: [String]?
+    public let url: String?
     
     enum CodingKeys: String, CodingKey {
         case key
@@ -95,7 +93,6 @@ struct OpenLibraryBook: Codable {
     }
 }
 
-
-struct OpenLibrarySearchResponse: Codable {
-    let docs: [OpenLibraryBook]
+public struct OpenLibrarySearchResponse: Codable {
+    public let docs: [OpenLibraryBook]
 }
