@@ -59,4 +59,44 @@ final class OpenLibrarySwiftSearchClientTests: XCTestCase {
         wait(for: [expectation], timeout: openLibraryIsNotFast)
     }
     
+    func testFindBooksByTitleAndAuthor() throws {
+        let expectation = XCTestExpectation(description: "Search for books by title and author")
+        
+        OpenLibrarySwiftSearchClient.findBooks(title: "Adventures of Tom Swift", author: "Victor Appleton", limit: 3) { result in
+            switch result {
+            case .success(let books):
+                XCTAssertEqual(books.count, 3, "Expected 3 books")
+                
+                XCTAssertTrue(books.contains { $0.title.contains("Adventures of Tom Swift") == true && $0.author_name?.contains("Victor Appleton") == true },
+                              "Expected 'Adventures of Tom Swift' by 'Victor Appleton'")
+                
+                expectation.fulfill()
+            case .failure(let error):
+                XCTFail("API call failed with error: \(error)")
+            }
+        }
+        
+        wait(for: [expectation], timeout: openLibraryIsNotFast)
+    }
+
+    
+    func testFindBooksByTitle() throws {
+        let expectation = XCTestExpectation(description: "Search for books by title")
+        
+        OpenLibrarySwiftSearchClient.findBooks(title: "Swift Programming", author: nil, limit: 5) { result in
+            switch result {
+            case .success(let books):
+                XCTAssertFalse(books.isEmpty, "No books found")
+                
+                XCTAssertTrue(books.contains { $0.title.localizedCaseInsensitiveCompare("Swift Programming") == .orderedSame },
+                              "Expected 'Swift Programming'")
+                
+                expectation.fulfill()
+            case .failure(let error):
+                XCTFail("API call failed with error: \(error)")
+            }
+        }
+        
+        wait(for: [expectation], timeout: openLibraryIsNotFast)
+    }
 }

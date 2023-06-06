@@ -9,39 +9,19 @@ public enum OpenLibraryAPIError: Error {
 }
 
 public struct OpenLibrarySwiftSearchClient {
-    
     public private(set) var text = "Hello, World!"
-
+    
     private static let baseURL = "https://openlibrary.org"
     private static let log = OSLog(subsystem: "com.example.OpenLibraryAPI", category: "API")
-
-    public init() {
-    }
+    
+    public init() {}
     
     public static func findClosestBook(title: String?, author: String?, completion: @escaping (Result<OpenLibraryBook, OpenLibraryAPIError>) -> Void) {
-        if title == nil && author == nil {
+        guard let url = constructSearchURL(withTitle: title, author: author, limit: 1) else {
             completion(.failure(.invalidURL))
             return
         }
-
-        var urlComponents = URLComponents(string: "\(baseURL)/search.json")
-        var queryItems = [URLQueryItem(name: "limit", value: "1")] // limit the results to 1
         
-        if let title = title {
-            queryItems.append(URLQueryItem(name: "title", value: title))
-        }
-        
-        if let author = author {
-            queryItems.append(URLQueryItem(name: "author", value: author))
-        }
-        
-        urlComponents?.queryItems = queryItems
-
-        guard let url = urlComponents?.url else {
-            completion(.failure(.invalidURL))
-            return
-        }
-
         URLSession.shared.dataTask(with: url) { data, response, error in
             if let error = error {
                 let logMessage = "Request failed: \(error.localizedDescription)"
@@ -55,10 +35,6 @@ public struct OpenLibrarySwiftSearchClient {
                 completion(.failure(.invalidResponse))
                 return
             }
-            
-            // Print raw JSON response
-            print(String(data: data, encoding: .utf8) ?? "Invalid data")
-
             
             do {
                 let decoder = JSONDecoder()
@@ -74,6 +50,58 @@ public struct OpenLibrarySwiftSearchClient {
                 completion(.failure(.serializationFailed))
             }
         }.resume()
+    }
+    
+    public static func findBooks(title: String?, author: String?, limit: Int, completion: @escaping (Result<[OpenLibraryBook], OpenLibraryAPIError>) -> Void) {
+        guard let url = constructSearchURL(withTitle: title, author: author, limit: limit) else {
+            completion(.failure(.invalidURL))
+            return
+        }
+        
+        URLSession.shared.dataTask(with: url) { data, response, error in
+            if let error = error {
+                let logMessage = "Request failed: \(error.localizedDescription)"
+                os_log("%@, function: %@, line: %d", log: Self.log, type: .error, logMessage, #function, #line)
+                completion(.failure(.requestFailed))
+                return
+            }
+            
+            guard let data = data else {
+                os_log("Invalid response data, function: %@, line: %d", log: Self.log, type: .error, #function, #line)
+                completion(.failure(.invalidResponse))
+                return
+            }
+            
+            do {
+                let decoder = JSONDecoder()
+                let searchResponse = try decoder.decode(OpenLibrarySearchResponse.self, from: data)
+                let books = searchResponse.docs
+                print("Books: \(books)")
+                completion(.success(books))
+            } catch {
+                let logMessage = "Serialization failed: \(error.localizedDescription)"
+                os_log("%@, function: %@, line: %d", log: Self.log, type: .error, logMessage, #function, #line)
+                completion(.failure(.serializationFailed))
+            }
+        }.resume()
+    }
+    
+    private static func constructSearchURL(withTitle title: String?, author: String?, limit: Int) -> URL? {
+        var urlComponents = URLComponents(string: "\(baseURL)/search.json")
+        var queryItems = [URLQueryItem]()
+        
+        if let title = title {
+            queryItems.append(URLQueryItem(name: "title", value: title))
+        }
+        
+        if let author = author {
+            queryItems.append(URLQueryItem(name: "author", value: author))
+        }
+        
+        queryItems.append(URLQueryItem(name: "limit", value: "\(limit)"))
+        urlComponents?.queryItems = queryItems
+        
+        return urlComponents?.url
     }
 }
 
