@@ -6,6 +6,7 @@ public enum OpenLibraryAPIError: Error {
     case requestFailed
     case invalidResponse
     case serializationFailed
+    case noResultsFound
 }
 
 public struct OpenLibrarySwiftSearchClient {
@@ -22,6 +23,7 @@ public struct OpenLibrarySwiftSearchClient {
             return
         }
         
+        os_log("URL for the request: %@", log: Self.log, type: .debug, url.absoluteString)
         URLSession.shared.dataTask(with: url) { data, response, error in
             if let error = error {
                 let logMessage = "Request failed: \(error.localizedDescription)"
@@ -58,6 +60,7 @@ public struct OpenLibrarySwiftSearchClient {
             return
         }
         
+        os_log("URL for the request: %@", log: Self.log, type: .debug, url.absoluteString)
         URLSession.shared.dataTask(with: url) { data, response, error in
             if let error = error {
                 let logMessage = "Request failed: \(error.localizedDescription)"
@@ -76,7 +79,6 @@ public struct OpenLibrarySwiftSearchClient {
                 let decoder = JSONDecoder()
                 let searchResponse = try decoder.decode(OpenLibrarySearchResponse.self, from: data)
                 let books = searchResponse.docs
-                print("Books: \(books)")
                 completion(.success(books))
             } catch {
                 let logMessage = "Serialization failed: \(error.localizedDescription)"
@@ -103,7 +105,77 @@ public struct OpenLibrarySwiftSearchClient {
         
         return urlComponents?.url
     }
+    
+    public static func searchBooksByTitleAndAuthor(_ searchString: String, limit: Int, completion: @escaping (Result<[OpenLibraryBook], OpenLibraryAPIError>) -> Void) {
+        
+        let pairs = generateTitleAuthorPairs(from: searchString)
+
+        let dispatchGroup = DispatchGroup()
+        var allBooks: [OpenLibraryBook] = []
+        var lastError: OpenLibraryAPIError?
+
+        for pair in pairs {
+            let title = pair.title.isEmpty ? nil : pair.title
+            let author = pair.author.isEmpty ? nil : pair.author
+
+            dispatchGroup.enter()
+            OpenLibrarySwiftSearchClient.findBooks(title: title, author: author, limit: limit) { result in
+                // Handle the search result
+                switch result {
+                case .success(let books):
+                    // Add the books from this query to the cumulative list
+                    allBooks += books
+                case .failure(let error):
+                    // Keep track of the last error that occurred
+                    lastError = error
+                }
+                
+                dispatchGroup.leave()
+            }
+        }
+
+        dispatchGroup.notify(queue: .main) {
+            if !allBooks.isEmpty {
+                // If we found any books, return those
+                completion(.success(allBooks))
+            } else if let error = lastError {
+                // If no books were found and there was an error, return the error
+                completion(.failure(error))
+            } else {
+                // If no books were found and there were no errors, return an appropriate error
+                completion(.failure(.noResultsFound))
+            }
+        }
+    }
+    
+    
+    
+    public static func generateTitleAuthorPairs(from searchString: String) -> [(title: String, author: String)] {
+        var pairs: [(title: String, author: String)] = []
+
+        if !searchString.isEmpty {
+            pairs.append((title: searchString, author: ""))
+            let words = searchString.split(separator: " ")
+            if let lastWord = words.last {
+                let titleWithoutLastWord = words.dropLast().joined(separator: " ")
+                pairs.append((title: titleWithoutLastWord, author: String(lastWord)))
+            }
+
+            if words.count > 1 {
+                let lastTwoWords = words.suffix(2).joined(separator: " ")
+                let titleWithoutLastTwoWords = words.dropLast(2).joined(separator: " ")
+                pairs.append((title: titleWithoutLastTwoWords, author: lastTwoWords))
+            }
+        }
+
+        return pairs
+    }
+    
 }
+
+
+private let MAX_API_CALLS_PER_SEARCH = 7
+
 
 public struct OpenLibraryBook: Codable {
     public let key: String
