@@ -125,28 +125,13 @@ final class OpenLibrarySwiftSearchClientTests: XCTestCase {
             
             switch result {
             case .success(let books):
-                
-                if books.isEmpty {
-                    print("The 'books' array is empty.")
-                } else {
-                    print("The 'books' array is not empty. Printing book details:")
-                    for book in books {
-                        print("Book: \(book.title), Author: \(book.author_name?.first ?? "N/A")")
-
-                    }
-                }
-                
                 XCTAssertFalse(books.isEmpty, "Expected non-empty search result")
-                print("Assertion passed. Fulfilling expectation.")
                 expectation.fulfill()
             case .failure(let error):
-                print("API call failed with error: \(error)")
                 XCTFail("API call failed with error: \(error)")
             }
         }
-        print("Waiting for expectation to be fulfilled.")
         wait(for: [expectation], timeout: openLibraryIsNotFast)
-        print("Test finished.")
     }
     
     func testSearchBooksByTitleAndAuthor_MultiWord_Combined() {
