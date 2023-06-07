@@ -180,6 +180,7 @@ private let MAX_API_CALLS_PER_SEARCH = 7
 public struct OpenLibraryBook: Codable {
     public let key: String
     public let title: String
+    public let first_publish_year: Int16
     public let isbn: [String]?
     public let author_name: [String]?
     public let url: String?
@@ -187,6 +188,7 @@ public struct OpenLibraryBook: Codable {
     enum CodingKeys: String, CodingKey {
         case key
         case title
+        case first_publish_year
         case isbn
         case author_name
         case url
