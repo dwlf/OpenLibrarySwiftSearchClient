@@ -81,10 +81,29 @@ public struct OpenLibrarySwiftSearchClient {
                 let books = searchResponse.docs
                 completion(.success(books))
             } catch {
-                let logMessage = "Serialization failed: \(error.localizedDescription)"
-                os_log("%@, function: %@, line: %d", log: Self.log, type: .error, logMessage, #function, #line)
+                let errorDescription: String
+                if let decodingError = error as? DecodingError {
+                    switch decodingError {
+                    case .dataCorrupted(let context),
+                         .keyNotFound(_, let context),
+                         .typeMismatch(_, let context),
+                         .valueNotFound(_, let context):
+                        errorDescription = """
+                        Serialization failed: \(decodingError.localizedDescription)
+                        Debug description: \(context.debugDescription)
+                        Coding path: \(context.codingPath.map { $0.stringValue }.joined(separator: "."))
+                        """
+                    @unknown default:
+                        errorDescription = "Serialization failed: \(decodingError.localizedDescription)"
+                    }
+                } else {
+                    errorDescription = "Serialization failed: \(error.localizedDescription)"
+                }
+                let logMessage = "\(errorDescription), function: \(#function), line: \(#line), title: \(title ?? "N/A"), author: \(author ?? "N/A"), limit: \(limit)"
+                os_log("%@", log: Self.log, type: .error, logMessage)
                 completion(.failure(.serializationFailed))
             }
+
         }.resume()
     }
     
