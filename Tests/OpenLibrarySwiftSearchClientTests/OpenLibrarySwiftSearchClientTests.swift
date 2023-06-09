@@ -59,6 +59,24 @@ final class OpenLibrarySwiftSearchClientTests: XCTestCase {
         wait(for: [expectation], timeout: openLibraryIsNotFast)
     }
     
+    
+    func testFindBooks_HarryPotter_ChamberOfSecrets() {
+         let expectation = XCTestExpectation(description: "Find 'Harry Potter and the Chamber of Secrets'")
+         let title = "Harry Potter and the Chamber of Secrets"
+         let limit = 15 // This Open Library Response has a bad response afer in position 8.
+         OpenLibrarySwiftSearchClient.findBooks(title: title, author: nil, limit: limit) { result in
+             switch result {
+             case .success(let books):
+                 XCTAssertFalse(books.isEmpty, "Expected non-empty search result")
+                 XCTAssert(books.contains { $0.title.contains(title) }, "Expected to find book with title containing '\(title)'")
+                 expectation.fulfill()
+             case .failure(let error):
+                 XCTFail("API call failed with error: \(error)")
+             }
+         }
+         wait(for: [expectation], timeout: openLibraryIsNotFast)
+     }
+    
     func testFindBooksByTitleAndAuthor() throws {
         let expectation = XCTestExpectation(description: "Search for books by title and author")
         

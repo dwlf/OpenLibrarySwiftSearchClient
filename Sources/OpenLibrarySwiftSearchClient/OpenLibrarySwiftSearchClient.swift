@@ -78,7 +78,7 @@ public struct OpenLibrarySwiftSearchClient {
             do {
                 let decoder = JSONDecoder()
                 let searchResponse = try decoder.decode(OpenLibrarySearchResponse.self, from: data)
-                let books = searchResponse.docs
+                let books = searchResponse.docs.filter { $0.first_publish_year != nil } // remove books without a first_publish_year
                 completion(.success(books))
             } catch {
                 let errorDescription: String
@@ -199,7 +199,7 @@ private let MAX_API_CALLS_PER_SEARCH = 7
 public struct OpenLibraryBook: Codable {
     public let key: String
     public let title: String
-    public let first_publish_year: Int16
+    public let first_publish_year: Int16?
     public let isbn: [String]?
     public let author_name: [String]?
     public let url: String?
